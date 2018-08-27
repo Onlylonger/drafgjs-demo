@@ -3,16 +3,50 @@ import {
   Editor,
   EditorState,
   KeyBindingUtil,
-  getDefaultKeyBinding
+  getDefaultKeyBinding,
+  RichUtils,
+  Modifier,
+  DefaultDraftBlockRenderMap,
+  convertToRaw,
+  convertFromHTML,
+  ContentState
 } from 'draft-js'
+import Immutable from 'immutable'
 import 'draft-js/dist/Draft.css'
+import SectionBlock from './Block/SectionBlock'
+import tsReact from 'ts-react-draftjs'
+
+console.log(tsReact)
+
+const sampleMarkup =
+  '<b>Bold text</b>, <i>Italic text</i><br/ ><br />' +
+  '<a href="http://www.facebook.com">Example link</a> <br />' +
+  '<section>nihaoo,heheda,woshishenn</section>'
+
+const blocksFromHTML = convertFromHTML(sampleMarkup)
+const state = ContentState.createFromBlockArray(
+  blocksFromHTML.contentBlocks,
+  blocksFromHTML.entityMap
+)
 
 const { hasCommandModifier } = KeyBindingUtil
 
+const blockRenderMap = Immutable.Map({
+  section: {
+    element: 'section',
+    wrapper: SectionBlock
+  }
+})
+
+const extendedBlockRenderMap = DefaultDraftBlockRenderMap.merge(blockRenderMap)
+
 export default class GoodEditor extends React.Component {
   state = {
-    editorState: EditorState.createEmpty()
+    editorState: EditorState.createWithContent(state)
+    // editorState: EditorState.createEmpty()
   }
+
+  draftjsDom = null
 
   onChange = editorState => {
     this.setState({
@@ -72,11 +106,49 @@ export default class GoodEditor extends React.Component {
     console.log('handleReturn: ', e, editorState)
   }
 
+  handleBold = () => {
+    this.onChange(RichUtils.toggleInlineStyle(this.state.editorState, 'BOLD'))
+    console.log(convertToRaw(this.state.editorState.getCurrentContent()))
+  }
+
+  handleAddEntity = () => {
+    const selectionState = this.state.editorState.getSelection()
+    const contentState = this.state.editorState.getCurrentContent()
+    const contentStateWithEntity = contentState.createEntity(
+      'LINK',
+      'MUTABLE',
+      { url: 'http://www.zombo.com' }
+    )
+    const entityKey = contentStateWithEntity.getLastCreatedEntityKey()
+    // const contentStateWithLink = Modifier.applyEntity(
+    //   contentStateWithEntity,
+    //   selectionState,
+    //   entityKey
+    // )
+    const newEditorState = EditorState.set(this.state.editorState, {
+      currentContent: contentStateWithEntity
+    })
+    this.setState({
+      editorState: RichUtils.toggleLink(
+        newEditorState,
+        newEditorState.getSelection(),
+        entityKey
+      )
+    })
+    // this.onChange(contentStateWithEntity)
+  }
+
+  componentDidMount() {
+    this.draftjsDom.focus()
+  }
+
   render() {
     const { editorState } = this.state
     const { placeholder } = this.props
     return (
-      <div className="good-editor">
+      <div className="good-editor" onClick={() => this.draftjsDom.focus()}>
+        <button onClick={this.handleBold}>Bold</button>
+        <button onClick={this.handleAddEntity}>Add entity</button>
         <Editor
           editorState={editorState}
           style={{ border: '1px solid red' }}
@@ -90,6 +162,8 @@ export default class GoodEditor extends React.Component {
           handlePastedText={this.handlePastedText}
           handleReturn={this.handleReturn}
           placeholder={placeholder}
+          ref={ref => (this.draftjsDom = ref)}
+          blockRenderMap={extendedBlockRenderMap}
           // textAlignment="center"
         />
       </div>
