@@ -1,6 +1,13 @@
 import React from 'react'
-import { Editor, EditorState } from 'draft-js'
+import {
+  Editor,
+  EditorState,
+  KeyBindingUtil,
+  getDefaultKeyBinding
+} from 'draft-js'
 import 'draft-js/dist/Draft.css'
+
+const { hasCommandModifier } = KeyBindingUtil
 
 export default class GoodEditor extends React.Component {
   state = {
@@ -36,6 +43,19 @@ export default class GoodEditor extends React.Component {
   // specified behavior.
   handleKeyCommand = (command, editorState) => {
     console.log('handleKeyCommand: ', command, editorState)
+    if (command === 'editor-save') {
+      console.log('dealing....')
+      return 'handled'
+    }
+    return 'not-handled'
+  }
+
+  keyBindingFn = e => {
+    console.log('keyBindingFn: ', e.keyCode)
+    if (e.keyCode === 83 && hasCommandModifier(e)) {
+      return 'editor-save'
+    }
+    return getDefaultKeyBinding(e)
   }
 
   handlePastedFiles = files => {
@@ -65,6 +85,7 @@ export default class GoodEditor extends React.Component {
           handleDrop={this.handleDrop}
           handleDroppedFiles={this.handleDroppedFiles}
           handleKeyCommand={this.handleKeyCommand}
+          keyBindingFn={this.keyBindingFn}
           handlePastedFiles={this.handlePastedFiles}
           handlePastedText={this.handlePastedText}
           handleReturn={this.handleReturn}
